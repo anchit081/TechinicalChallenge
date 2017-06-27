@@ -1,0 +1,181 @@
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div ng-app="myApp">
+    <h2>I. BUBBLE CHART</h2>
+    <div ng-controller="BubbleCtrl">
+    <!--see examples/bubble.html for random bubbles source code-->
+            <canvas class="chart chart-bubble" chart-data="data"
+                    chart-colors="colors" chart-options="options"></canvas>
+    </div>
+    <h2>II. WEB SERVICE IN MVC 5</h2>
+    <a class="btn btn-success" asp-area="" asp-controller="Home" asp-action="CreateData"><i class="glyphicon glyphicon-plus"></i>Add New Data</a>
+    <div ng-controller="DisplayData">
+        <table class="table table-striped text-center">
+            <thead>
+                <th class="text-center">Supplier</th>
+                <th class="text-center">Year</td>
+                <th class="text-center">Spend</th>
+                <th class="text-center">Quantity</th>
+                <th class="text-center">No of products</th>
+                <th class="text-center">Action</th>
+            </thead>
+            <tr ng-repeat="result in resultAll">
+                <td>{{ result.supplier }}</td>
+                <td>{{ result.year }}</td>
+                <td>{{ result.spend }}</td>
+                <td>{{ result.quantity }}</td>
+                <td>{{ result.no_of_products }}</td>
+                <td>
+                    <a class="btn btn-danger glyphicon glyphicon-trash" ng-href='#here' aria-hidden="true" ng-click='deleteData(result.id)'></a>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+<script>
+
+angular.module('myApp', ['chart.js'])
+  .config(['ChartJsProvider', function (ChartJsProvider) {
+    'use strict';
+    ChartJsProvider.setOptions({
+      tooltips: { enabled: false }
+    });
+  }])
+  .controller('BubbleCtrl', ['$scope', '$interval','InterviewData', function ($scope, $interval,InterviewData) {
+    'use strict';
+
+    $scope.options = {
+      scales: {
+        xAxes: [{
+          display: false,
+          ticks: {
+            max: 125,
+            min: -125,
+            stepSize: 10
+          }
+        }],
+        yAxes: [{
+          display: false,
+          ticks: {
+            max: 125,
+            min: -125,
+            stepSize: 10
+          }
+        }]
+      }
+    };
+    
+    createChart();
+    $interval(createChart, 2000);
+
+    var y = 0;
+    function createChart () {
+
+    $scope.resultAll = [];
+    InterviewData.GetAllData().then(function (d){
+        $scope.resultAll = d.data;
+
+
+        var groupBy = function(xs, key) {
+        return xs.reduce(function(rv, x) {
+            (rv[x[key]] = rv[x[key]] || []).push(x);
+            return rv;
+        }, {});
+        };
+        var groubedByYear=groupBy(d.data, 'year')
+        var yearArr = [];
+        for (var x in groubedByYear) {
+                yearArr.push(x)
+        }
+
+        console.log(yearArr[y])
+
+        $scope.series = [];
+        $scope.data = [];
+        $.each(groubedByYear[yearArr[y]],function(key,val){
+            $scope.series.push('Series '+val.supplier)
+
+            $scope.data.push([{
+                x: val.spend/1000,
+                y: val.quantity/1000,
+                r: val.no_of_products/100
+            }]);
+
+        });
+        y++;
+       
+       if(y == yearArr.length){
+           y = 0
+       }
+        
+    }, function(){
+        alert("Failed!");
+    });
+
+
+
+
+ 
+    }
+
+    function randomScalingFactor () {
+      return (Math.random() > 0.5 ? 1.0 : -1.0) * Math.round(Math.random() * 100);
+    }
+
+    function randomRadius () {
+      return Math.abs(randomScalingFactor()) / 4;
+    }
+
+    
+
+    function randomScalingFactor () {
+      return (Math.random() > 0.5 ? 1.0 : -1.0) * Math.round(Math.random() * 100);
+    }
+
+    function randomRadius () {
+      return Math.abs(randomScalingFactor()) / 4;
+    }
+  }])
+    .controller('DisplayData',function($scope,InterviewData){
+        $scope.resultAll = [];
+        InterviewData.GetAllData().then(function (d){
+            $scope.resultAll = d.data;
+        }, function(){
+            alert("Failed!");
+        });
+
+        $scope.deleteData = function(dataId) {
+            $.ajax({
+                url: '/api/todo/'+dataId,
+                type: "DELETE",
+                dataType: "json",
+                contentType: "application/json; charset=utf-8",
+                success: function (result) {
+                    InterviewData.GetAllData().then(function (d){
+                        $scope.resultAll = d.data;
+                    }, function(){
+                        alert("Failed!");
+                    });
+                },
+                error: function (result) {
+                    alert("Failed");
+                }
+            });
+        }
+    })
+    .factory('InterviewData',function($http){
+        var fac = {};
+        fac.GetAllData = function() {
+            return $http.get('/api/todo/');
+        }
+        return fac;
+    })
+  ;
+</script>
+
+
+
+
+
